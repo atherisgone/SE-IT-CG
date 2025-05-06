@@ -1,193 +1,110 @@
 #include <GL/glut.h>
-#include<iostream>
-
-
+#include <iostream>
+#include <cmath>
 using namespace std;
 
-int ch;                                                    // To track whether we're drawing a line or a circle
-int centerX, centerY, radius;                              // For circle center and radius
+int ch = 0;
+bool firstClick = false;
+int xst, yst;
 
-
-void displayPoint(int x, int y)
-{
-   glColor3f(0, 0, 1);
-   glPointSize(2);
-   glBegin(GL_POINTS);
-   glVertex2i(x, y);
-   glEnd();
+void displayPoints(int x, int y){
+    glColor3f(0, 0, 0);
+    glPointSize(2);
+    glBegin(GL_POINTS);
+    glVertex2i(x, y);
+    glEnd();
+    glFlush();  // Immediate rendering
 }
 
-void simpleLine(int x1, int y1, int x2, int y2) {
-    int dx = abs(x2 - x1);
-    int dy = abs(y2 - y1);
-    int x, y, p;
-    int xIncrement, yIncrement;
+void drawLine(int x1, int y1, int x2, int y2){
+    int dx = abs(x2 - x1), dy = abs(y2 - y1);
+    int xInc = (x2 > x1) ? 1 : -1;
+    int yInc = (y2 > y1) ? 1 : -1;
+    int err = dx - dy;
 
-    if (x2 > x1)
-        xIncrement = 1;
-    else
-        xIncrement = -1;
-
-    if (y2 > y1)
-        yIncrement = 1;
-    else
-        yIncrement = -1;
-  
-                                                                                        /*[// for (int i = 0; i <= dx; i++) {
-                                                                                                                         if (i % 3 == 0) {
-                                                                                                                               displayPoint(x, y);
-                                                                                                                                                       }
-                                                                                         FOR DOTTED replace this instead of:  while (x != x2) {
-                                                                                                                                 glVertex2i(x, y);
-                                                                                                                                            ]*/
-
-    if (dx > dy) {
-        p = 2 * dy - dx;
-        x = x1;
-        y = y1;
-
-        glBegin(GL_POINTS);
-        while (x != x2) {
-            glVertex2i(x, y);
-            x += xIncrement;
-            if (p >= 0) {
-                y += yIncrement;
-                p += 2 * (dy - dx);
-            } else {
-                p += 2 * dy;
-            }
-        }
-        glEnd();
+    while (true){
+        displayPoints(x1, y1);
+        if (x1 == x2 && y1 == y2) break;
+        int e2 = 2 * err;
+        if (e2 > -dy){ err -= dy; x1 += xInc; }
+        if (e2 < dx){ err += dx; y1 += yInc; }
     }
-    else {
-        p = 2 * dx - dy;
-        x = x1;
-        y = y1;
-
-        glBegin(GL_POINTS);
-        while (y != y2) {
-            glVertex2i(x, y);
-            y += yIncrement;
-            if (p >= 0) {
-                x += xIncrement;
-                p += 2 * (dx - dy);
-            } else {
-                p += 2 * dx;
-            }
-        }
-        glEnd();
-    }
-
-    glFlush();
 }
 
-void drawCircle(int xc, int yc, int r) {
-    glColor3f(1, 0, 0);  // Red color for circle
+void drawCircle(int xC, int yC, int r){
     int x = 0, y = r;
-    int d = 3 - (2 * r);
-    while (x <= y) {
-        glBegin(GL_POINTS);
-        glVertex2i(xc + x, yc + y);
-        glVertex2i(xc - x, yc + y);
-        glVertex2i(xc + x, yc - y);
-        glVertex2i(xc - x, yc - y);
-        glVertex2i(xc + y, yc + x);
-        glVertex2i(xc - y, yc + x);
-        glVertex2i(xc + y, yc - x);
-        glVertex2i(xc - y, yc - x);
-        glEnd();
+    int d = 3 - 2 * r;
+
+    while (x <= y){
+        displayPoints(xC + x, yC + y);
+        displayPoints(xC - x, yC + y);
+        displayPoints(xC + x, yC - y);
+        displayPoints(xC - x, yC - y);
+        displayPoints(xC + y, yC + x);
+        displayPoints(xC - y, yC + x);
+        displayPoints(xC + y, yC - x);
+        displayPoints(xC - y, yC - x);
+        if (d < 0) d += 4 * x + 6;
+        else { d += 4 * (x - y) + 10; y--; }
         x++;
-        if (d > 0) {
-            y--;
-            d = d + 4 * (x - y) + 10;
-        } else {
-            d = d + 4 * x + 6;
+    }
+}
+
+void mouse(int button, int state, int x, int y){
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN){
+        if (!firstClick){
+            xst = x; yst = y;
+            firstClick = true;
+        }
+        else{
+            if (ch == 1){
+                drawLine(xst, yst, x, y);
+            }
+            else if (ch == 2){
+                int radius = sqrt((x - xst)*(x - xst) + (y - yst)*(y - yst));
+                drawCircle(xst, yst, radius);
+            }
+            firstClick = false;
         }
     }
+    else if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN){
+        firstClick = false;
+    }
+}
+
+void keyboard(unsigned char key, int x, int y){
+    if (key == 'l') ch = 1;
+    else if (key == 'c') ch = 2;
+    glutMouseFunc(mouse);
+}
+
+void init(){
+    glClearColor(1, 1, 1, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    gluOrtho2D(0, 600, 600, 0);
     glFlush();
 }
 
-void myMouse(int button, int state, int x, int y)
-{
-   static int xst, yst, pt = 0;
-   if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
-   {
-      if (pt == 0)
-      {
-         xst = x;
-         yst = y;
-
-         pt = pt + 1;
-      }
-      else
-      {
-         if (ch == 1)
-         {
-            simpleLine(xst, yst, x, y);  // Draw line
-         }
-         else if (ch == 2)  // Draw circle
-         {
-            centerX = xst;
-            centerY = yst;
-           radius = abs(x - xst) + abs(y - yst);  // Manhattan distance
-
-            drawCircle(centerX, centerY, radius);
-         }
-         pt = 0;
-      }
-   }
-   else if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN)
-   {
-      pt = 0;
-   }
-   glFlush();
+void display(){
+    // Don’t clear — so existing drawings persist
+    // glClear(GL_COLOR_BUFFER_BIT);  <-- DON'T DO THIS
+    glFlush();
 }
 
-void keyboard(unsigned char key, int x, int y)
-{
-   switch (key)
-   {
-   case 'l':
-      ch = 1;
-      glutMouseFunc(myMouse);
-      break;
+int main(int argc, char **argv){
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+    glutInitWindowSize(600, 600);
+    glutCreateWindow("Bresenham Line and Circle");
 
-   case 'c':
-      ch = 2;
-      glutMouseFunc(myMouse);
-      break;
-   }
-   glutPostRedisplay();
+    glMatrixMode(GL_PROJECTION);
+    init();
+
+    glutDisplayFunc(display);
+    glutKeyboardFunc(keyboard);
+
+    cout << "Press 'l' for Line, 'c' for Circle. Left-click to draw.\n";
+    glutMainLoop();
+    return 0;
 }
 
-void initialize(void)
-{
-   glClearColor(1.0, 1.0, 1.0, 1.0);
-   glClear(GL_COLOR_BUFFER_BIT);
-   gluOrtho2D(0, 600, 600, 0);
-}
-
-void primitives(void)
-{
-   glColor3f(1, 0, 0);
-   simpleLine(0, 300, 600, 300);
-   simpleLine(300, 0, 300, 600);
-   glutKeyboardFunc(keyboard);
-}
-
-int main(int argc, char **argv)
-{
-   glutInit(&argc, argv);
-   glutInitDisplayMode(GLUT_SINGLE);
-   glutInitWindowPosition(0, 0);
-   glutInitWindowSize(600, 600);
-   glutCreateWindow("BresenhamLine - SIB62");
-   initialize();
-   cout << "--------------------";
-   cout << "\nPress l. Simple Line";
-   cout << "\nPress c. Circle";
-   cout << "\n-------------------";
-   glutDisplayFunc(primitives);
-   glutMainLoop();
-   return 0;
-}
